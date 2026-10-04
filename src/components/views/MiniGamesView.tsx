@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Dices, Heart, Lock, MessageCircle, RotateCcw, Settings2, Shuffle, Sparkles, Unlock, Users, X } from 'lucide-react';
 import { Player, Theme } from '../../types';
 import { Dice } from '../Dice';
-import { DICE_LEVELS, DiceLevel, drawItem, MATCH_QUESTIONS, TRUTH_QUESTIONS } from '../../data/miniGames';
+import { DICE_LEVELS, DiceLevel, drawItem, extractDiceWords, LEGACY_DICE_LEVELS, MATCH_QUESTIONS, TRUTH_QUESTIONS } from '../../data/miniGames';
 
 type MiniGame = 'dice' | 'truth' | 'match';
 type Settings = { actions: string[]; poses: string[]; questions: string[] };
@@ -19,11 +19,17 @@ function loadSettings(): LevelSettings {
     const valid = (items: unknown, count?: number): items is string[] => Array.isArray(items)
       && items.length > 0 && (!count || items.length === count)
       && items.every(item => typeof item === 'string' && item.trim().length > 0 && item.length <= 120);
-    return Object.fromEntries(DICE_LEVELS.map(level => [level.id, {
-      actions: valid(value?.[level.id]?.actions, 6) ? value[level.id].actions : [...level.actions],
-      poses: valid(value?.[level.id]?.poses, 6) ? value[level.id].poses : [...level.poses],
-      questions: valid(value?.[level.id]?.questions) ? value[level.id].questions : TRUTH_QUESTIONS,
-    }])) as LevelSettings;
+    return Object.fromEntries(DICE_LEVELS.map(level => {
+      const legacy = LEGACY_DICE_LEVELS.find(item => item.id === level.id)!;
+      const stored = value?.[level.id];
+      const useStored = (key: 'actions' | 'poses') => valid(stored?.[key], 6)
+        && JSON.stringify(stored[key]) !== JSON.stringify(legacy[key]);
+      return [level.id, {
+        actions: useStored('actions') ? stored.actions : [...level.actions],
+        poses: useStored('poses') ? stored.poses : [...level.poses],
+        questions: valid(stored?.questions) ? stored.questions : TRUTH_QUESTIONS,
+      }];
+    })) as LevelSettings;
   } catch { return defaults; }
 }
 
@@ -35,6 +41,7 @@ export function MiniGamesView({ themes, players }: { themes: Theme[]; players: P
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ actions: '', poses: '', questions: '' });
   const [error, setError] = useState('');
+  const [sourceId, setSourceId] = useState('');
   const games = [
     { id: 'dice' as const, name: '双骰子', icon: Dices },
     { id: 'truth' as const, name: '真心话', icon: Heart },
@@ -44,6 +51,7 @@ export function MiniGamesView({ themes, players }: { themes: Theme[]; players: P
   const openSettings = () => {
     setDraft({ actions: settings.actions.join('\n'), poses: settings.poses.join('\n'), questions: settings.questions.join('\n') });
     setError('');
+    setSourceId(DICE_LEVELS.find(item => item.id === level)?.sourceId || themes[0]?.id || '');
     setEditing(true);
   };
 
@@ -92,6 +100,18 @@ export function MiniGamesView({ themes, players }: { themes: Theme[]; players: P
               <button className={secondary + ' !px-3'} title="关闭" aria-label="关闭词库" onClick={() => setEditing(false)}><X size={20} /></button>
             </div>
             <div className="space-y-4">
+              <label className="block text-sm text-gray-300">来源题库
+                <select className={input + ' mt-2'} value={sourceId} onChange={event => setSourceId(event.target.value)}>
+                  {themes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}
+                </select>
+              </label>
+              <button className={secondary + ' w-full'} onClick={() => {
+                const theme = themes.find(item => item.id === sourceId);
+                const words = extractDiceWords(theme?.tasks || [], defaults[level]);
+                if (!words.extractedActions && !words.extractedPoses) { setError('这份题库没有可提取的动作或姿势，请手动编辑。'); return; }
+                setDraft(previous => ({ ...previous, actions: words.actions.join('\n'), poses: words.poses.join('\n') }));
+                setError('');
+              }}><Shuffle size={18} />从飞行棋题库导入</button>
               {([{ key: 'actions', label: '动作（6 项）' }, { key: 'poses', label: '姿势（6 项）' }, { key: 'questions', label: '真心话问题' }] as const).map(({ key, label }) => (
                 <label key={key} className="block text-sm text-gray-300">{label}
                   <textarea className={input + ' mt-2 h-36 resize-y'} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} />
