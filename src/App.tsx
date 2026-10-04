@@ -12,6 +12,7 @@ import { BottomNav } from './components/BottomNav';
 import { ThemeCreateModal } from './components/modals/ThemeCreateModal';
 import { ThemeEditorModal } from './components/modals/ThemeEditorModal';
 import { AiImportModal } from './components/modals/AiImportModal';
+import { MiniGamesView } from './components/views/MiniGamesView';
 
 function App() {
   const {
@@ -39,6 +40,7 @@ function App() {
   const [isCreateThemeModalOpen, setIsCreateThemeModalOpen] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const [aiImportThemeId, setAiImportThemeId] = useState<string | null>(null);
+  const [isMiniView, setIsMiniView] = useState(false);
 
   const handleSelectTheme = (playerId: number) => {
     setSelectedPlayerId(playerId);
@@ -81,8 +83,9 @@ function App() {
     setWinnerId(id);
   };
 
-  const handleNavigate = (view: 'home' | 'themes') => {
-    switchView(view);
+  const handleNavigate = (view: 'home' | 'themes' | 'mini') => {
+    setIsMiniView(view === 'mini');
+    if (view !== 'mini') switchView(view);
   };
 
   const handleBackFromGame = () => {
@@ -129,7 +132,7 @@ function App() {
         <main className="flex-1 min-h-0 relative overflow-hidden">
           <div
             className={`absolute inset-0 flex flex-col px-6 pt-10 pb-10 transition-all duration-500 ease-in-out ${
-              state.view === 'home'
+              state.view === 'home' && !isMiniView
                 ? 'translate-x-0 opacity-100'
                 : 'opacity-0 pointer-events-none -translate-x-full'
             }`}
@@ -144,7 +147,7 @@ function App() {
 
           <div
             className={`absolute inset-0 flex flex-col min-h-0 px-6 pt-4 transition-all duration-500 ease-in-out ${
-              state.view === 'themes'
+              state.view === 'themes' && !isMiniView
                 ? 'translate-x-0 opacity-100'
                 : 'opacity-0 pointer-events-none translate-x-full'
             }`}
@@ -155,9 +158,14 @@ function App() {
               onEditTheme={themeId => setEditingThemeId(themeId)}
             />
           </div>
+          {isMiniView && (
+            <div className="absolute inset-0 px-6 pt-4 overflow-y-auto no-scrollbar pb-6">
+              <MiniGamesView themes={state.themes} players={state.players} />
+            </div>
+          )}
         </main>
 
-        <BottomNav activeView={state.view} onNavigate={handleNavigate} />
+        <BottomNav activeView={isMiniView ? 'mini' : state.view} onNavigate={handleNavigate} />
       </div>
 
       <ThemeSelectorModal

@@ -1,8 +1,8 @@
-import { GamepadIcon, Layers } from 'lucide-react';
+import { GamepadIcon, Layers, Dices } from 'lucide-react';
 
 interface BottomNavProps {
-  activeView: 'home' | 'game' | 'themes';
-  onNavigate: (view: 'home' | 'themes') => void;
+  activeView: 'home' | 'game' | 'themes' | 'mini';
+  onNavigate: (view: 'home' | 'themes' | 'mini') => void;
 }
 
 export function BottomNav({ activeView, onNavigate }: BottomNavProps) {
@@ -31,6 +31,14 @@ export function BottomNav({ activeView, onNavigate }: BottomNavProps) {
         >
           游戏
         </span>
+      </button>
+
+      <button
+        className={`group flex flex-col items-center gap-1 w-16 transition-opacity ${activeView === 'mini' ? 'opacity-100' : 'opacity-50'}`}
+        onClick={() => onNavigate('mini')}
+      >
+        <Dices className={activeView === 'mini' ? 'text-white' : 'text-gray-400'} size={26} />
+        <span className={`text-[10px] font-medium ${activeView === 'mini' ? 'text-white' : 'text-gray-400'}`}>小游戏</span>
       </button>
 
       <button
